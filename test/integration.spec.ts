@@ -50,14 +50,20 @@ a **b** _c_ **_d_ e**
       slack.section('• bullet _a_\n• bullet _b_'),
       slack.section('1. number _a_\n2. number _b_'),
       slack.section('• checkbox false\n• checkbox true'),
-      slack.section(
-        '```\n' +
-          '| Syntax | Description |\n' +
-          '| --- | --- |\n' +
-          '| Header | Title |\n' +
-          '| Paragraph | Text |\n' +
-          '```'
-      ),
+      slack.table([
+        [
+          {type: 'raw_text', text: 'Syntax'},
+          {type: 'raw_text', text: 'Description'},
+        ],
+        [
+          {type: 'raw_text', text: 'Header'},
+          {type: 'raw_text', text: 'Title'},
+        ],
+        [
+          {type: 'raw_text', text: 'Paragraph'},
+          {type: 'raw_text', text: 'Text'},
+        ],
+      ]),
     ];
 
     expect(actual).toStrictEqual(expected);
@@ -125,6 +131,34 @@ if (a === 'hi') {
 
       expect(actual).toStrictEqual(expected);
     });
+  });
+
+  it('should convert markdown with table to blocks', async () => {
+    const markdown = `
+# Report
+
+| Name | Status |
+| --- | --- |
+| **Project A** | Complete |
+| _Project B_ | In Progress |
+
+End of report.
+    `.trim();
+
+    const blocks = await markdownToBlocks(markdown);
+
+    expect(blocks).toHaveLength(3);
+    expect(blocks[0].type).toBe('header');
+    expect(blocks[1].type).toBe('table');
+    expect(blocks[2].type).toBe('section');
+
+    const tableBlock = blocks[1] as any;
+    expect(tableBlock.rows).toHaveLength(3);
+    expect(tableBlock.rows[0][0]).toEqual({
+      type: 'raw_text',
+      text: 'Name',
+    });
+    expect(tableBlock.rows[1][0].type).toBe('rich_text');
   });
 
   it('should correctly escape text', async () => {

@@ -28,7 +28,7 @@
   "author": "Instantish",
   "license": "MIT",
   "dependencies": {
-    "@slack/types": "^2.1.0",
+    "@slack/types": "^2.20.0",
     "fast-xml-parser": "^4.0.6",
     "marked": "^4.0.12"
   },

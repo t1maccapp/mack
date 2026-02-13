@@ -2,10 +2,15 @@ import type {
   DividerBlock,
   HeaderBlock,
   ImageBlock,
+  RawTextElement,
+  RichTextBlock,
   SectionBlock,
+  TableBlock,
 } from '@slack/types';
 
 const MAX_TEXT_LENGTH = 3000;
+const MAX_TABLE_ROWS = 100;
+const MAX_TABLE_COLUMNS = 20;
 const MAX_HEADER_LENGTH = 150;
 const MAX_IMAGE_TITLE_LENGTH = 2000;
 const MAX_IMAGE_ALT_TEXT_LENGTH = 2000;
@@ -51,5 +56,16 @@ export function image(
           text: title.slice(0, MAX_IMAGE_TITLE_LENGTH),
         }
       : undefined,
+  };
+}
+
+export function table(rows: (RichTextBlock | RawTextElement)[][]): TableBlock {
+  const truncatedRows = rows
+    .slice(0, MAX_TABLE_ROWS)
+    .map(row => row.slice(0, MAX_TABLE_COLUMNS));
+
+  return {
+    type: 'table',
+    rows: truncatedRows,
   };
 }

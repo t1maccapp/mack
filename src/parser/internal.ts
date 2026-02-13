@@ -3,10 +3,15 @@ import {
   HeaderBlock,
   ImageBlock,
   KnownBlock,
+  RawTextElement,
+  RichTextBlock,
+  RichTextLink,
+  RichTextText,
   SectionBlock,
+  TableBlock,
 } from '@slack/types';
 import {ListOptions, ParsingOptions} from '../types';
-import {section, divider, header, image} from '../slack';
+import {section, divider, header, image, table} from '../slack';
 import {marked} from 'marked';
 import {XMLParser} from 'fast-xml-parser';
 
@@ -100,18 +105,6 @@ function addMrkdwn(
   }
 }
 
-function parsePhrasingContentToStrings(
-  element: PhrasingToken,
-  accumulator: string[]
-) {
-  if (element.type === 'image') {
-    accumulator.push(element.href ?? element.title ?? element.text ?? 'image');
-  } else {
-    const text = parseMrkdwn(element);
-    accumulator.push(text);
-  }
-}
-
 function parsePhrasingContent(
   element: PhrasingToken,
   accumulator: (SectionBlock | ImageBlock)[]
@@ -180,44 +173,94 @@ function parseList(
   return section(contents.join('\n'));
 }
 
-function combineBetweenPipes(texts: String[]): string {
-  return `| ${texts.join(' | ')} |`;
-}
+function parseTableCellToRichText(
+  cell: marked.Tokens.TableCell
+): RichTextBlock | RawTextElement {
+  const elements: (RichTextText | RichTextLink)[] = [];
 
-function parseTableRows(rows: marked.Tokens.TableCell[][]): string[] {
-  const parsedRows: string[] = [];
-  rows.forEach((row, index) => {
-    const parsedCells = parseTableRow(row);
-    if (index === 1) {
-      const headerRowArray = new Array(parsedCells.length).fill('---');
-      const headerRow = combineBetweenPipes(headerRowArray);
-      parsedRows.push(headerRow);
+  for (const token of cell.tokens) {
+    const t = token as PhrasingToken;
+
+    switch (t.type) {
+      case 'text':
+        elements.push({type: 'text', text: t.text});
+        break;
+
+      case 'strong': {
+        const text = t.tokens
+          .flatMap(c => parsePlainText(c as PhrasingToken))
+          .join('');
+        elements.push({type: 'text', text, style: {bold: true}});
+        break;
+      }
+
+      case 'em': {
+        const text = t.tokens
+          .flatMap(c => parsePlainText(c as PhrasingToken))
+          .join('');
+        elements.push({type: 'text', text, style: {italic: true}});
+        break;
+      }
+
+      case 'del': {
+        const text = t.tokens
+          .flatMap(c => parsePlainText(c as PhrasingToken))
+          .join('');
+        elements.push({type: 'text', text, style: {strike: true}});
+        break;
+      }
+
+      case 'codespan':
+        elements.push({type: 'text', text: t.text, style: {code: true}});
+        break;
+
+      case 'link': {
+        const text = t.tokens
+          .flatMap(c => parsePlainText(c as PhrasingToken))
+          .join('');
+        elements.push({type: 'link', text: text || t.href, url: t.href});
+        break;
+      }
+
+      case 'image':
+        elements.push({type: 'text', text: t.title || t.href});
+        break;
+
+      case 'br':
+      case 'html':
+        break;
     }
-    parsedRows.push(combineBetweenPipes(parsedCells));
-  });
-  return parsedRows;
+  }
+
+  if (elements.length === 0) {
+    return {type: 'raw_text', text: ''};
+  }
+
+  if (
+    elements.length === 1 &&
+    elements[0].type === 'text' &&
+    !elements[0].style
+  ) {
+    return {type: 'raw_text', text: elements[0].text};
+  }
+
+  return {
+    type: 'rich_text',
+    elements: [{type: 'rich_text_section', elements}],
+  };
 }
 
-function parseTableRow(row: marked.Tokens.TableCell[]): String[] {
-  const parsedCells: String[] = [];
-  row.forEach(cell => {
-    parsedCells.push(parseTableCell(cell));
-  });
-  return parsedCells;
-}
+function parseTable(element: marked.Tokens.Table): TableBlock {
+  const allRows: marked.Tokens.TableCell[][] = [
+    element.header,
+    ...element.rows,
+  ];
 
-function parseTableCell(cell: marked.Tokens.TableCell): String {
-  const texts = cell.tokens.reduce((accumulator, child) => {
-    parsePhrasingContentToStrings(child as PhrasingToken, accumulator);
-    return accumulator;
-  }, [] as string[]);
-  return texts.join(' ');
-}
+  const parsedRows: (RichTextBlock | RawTextElement)[][] = allRows.map(row =>
+    row.map(cell => parseTableCellToRichText(cell))
+  );
 
-function parseTable(element: marked.Tokens.Table): SectionBlock {
-  const parsedRows = parseTableRows([element.header, ...element.rows]);
-
-  return section(`\`\`\`\n${parsedRows.join('\n')}\n\`\`\``);
+  return table(parsedRows);
 }
 
 function parseBlockquote(element: marked.Tokens.Blockquote): KnownBlock[] {
