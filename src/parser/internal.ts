@@ -92,6 +92,16 @@ function parseMrkdwn(
   }
 }
 
+function fixMrkdwnSpacing(text: string): string {
+  return text
+    .replace(/([^\s*~_`|<>])(\*[^*\s][^*]*\*)/g, '$1 $2')
+    .replace(/(\*[^*\s][^*]*\*)([^\s*~_`|<>])/g, '$1 $2')
+    .replace(/([^\s*~_`|<>])(_[^_\s][^_]*_)/g, '$1 $2')
+    .replace(/(_[^_\s][^_]*_)([^\s*~_`|<>])/g, '$1 $2')
+    .replace(/([^\s*~_`|<>])(~[^~\s][^~]*~)/g, '$1 $2')
+    .replace(/(~[^~\s][^~]*~)([^\s*~_`|<>])/g, '$1 $2');
+}
+
 function addMrkdwn(
   content: string,
   accumulator: (SectionBlock | ImageBlock)[]
@@ -123,10 +133,18 @@ function parsePhrasingContent(
 }
 
 function parseParagraph(element: marked.Tokens.Paragraph): KnownBlock[] {
-  return element.tokens.reduce((accumulator, child) => {
+  const blocks = element.tokens.reduce((accumulator, child) => {
     parsePhrasingContent(child as PhrasingToken, accumulator);
     return accumulator;
   }, [] as (SectionBlock | ImageBlock)[]);
+
+  for (const block of blocks) {
+    if (isSectionBlock(block) && block.text) {
+      block.text.text = fixMrkdwnSpacing(block.text.text);
+    }
+  }
+
+  return blocks;
 }
 
 function parseHeading(element: marked.Tokens.Heading): HeaderBlock {
@@ -152,13 +170,15 @@ function parseList(
       return paragraph?.text || '';
     }
 
-    const text = paragraph.tokens
-      .filter(
-        (child): child is Exclude<PhrasingToken, marked.Tokens.Image> =>
-          child.type !== 'image'
-      )
-      .flatMap(parseMrkdwn)
-      .join('');
+    const text = fixMrkdwnSpacing(
+      paragraph.tokens
+        .filter(
+          (child): child is Exclude<PhrasingToken, marked.Tokens.Image> =>
+            child.type !== 'image'
+        )
+        .flatMap(parseMrkdwn)
+        .join('')
+    );
 
     if (element.ordered) {
       index += 1;

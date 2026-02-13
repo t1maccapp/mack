@@ -200,6 +200,64 @@ describe('table parsing', () => {
   });
 });
 
+describe('mrkdwn spacing for Slack compatibility', () => {
+  it('should add space before bold when preceded by closing paren', () => {
+    const tokens = marked.lexer('(-26°C)**Conditions:** Light');
+    const actual = parseBlocks(tokens);
+    const expected = [slack.section('(-26°C) *Conditions:* Light')];
+    expect(actual).toStrictEqual(expected);
+  });
+
+  it('should not add space before bold when already spaced', () => {
+    const tokens = marked.lexer('(-26°C) **Conditions:** Light');
+    const actual = parseBlocks(tokens);
+    const expected = [slack.section('(-26°C) *Conditions:* Light')];
+    expect(actual).toStrictEqual(expected);
+  });
+
+  it('should add space before bold when preceded by alphanumeric', () => {
+    const tokens = marked.lexer('hello**world**there');
+    const actual = parseBlocks(tokens);
+    const expected = [slack.section('hello *world* there')];
+    expect(actual).toStrictEqual(expected);
+  });
+
+  it('should not add space before bold at start of text', () => {
+    const tokens = marked.lexer('**bold** text');
+    const actual = parseBlocks(tokens);
+    const expected = [slack.section('*bold* text')];
+    expect(actual).toStrictEqual(expected);
+  });
+
+  it('should not break nested formatting', () => {
+    const tokens = marked.lexer('**_italic inside bold_ end**');
+    const actual = parseBlocks(tokens);
+    const expected = [slack.section('*_italic inside bold_ end*')];
+    expect(actual).toStrictEqual(expected);
+  });
+
+  it('should add space before italic when preceded by non-whitespace', () => {
+    const tokens = marked.lexer('word*italic*rest');
+    const actual = parseBlocks(tokens);
+    const expected = [slack.section('word _italic_ rest')];
+    expect(actual).toStrictEqual(expected);
+  });
+
+  it('should add space before strikethrough when preceded by non-whitespace', () => {
+    const tokens = marked.lexer('word~~strike~~rest');
+    const actual = parseBlocks(tokens);
+    const expected = [slack.section('word ~strike~ rest')];
+    expect(actual).toStrictEqual(expected);
+  });
+
+  it('should fix spacing in list items', () => {
+    const tokens = marked.lexer('- text**bold**more');
+    const actual = parseBlocks(tokens);
+    const expected = [slack.section('• text *bold* more')];
+    expect(actual).toStrictEqual(expected);
+  });
+});
+
 it('should truncate basic markdown', () => {
   const a4000 = new Array(4000).fill('a').join('');
   const a3000 = new Array(3000).fill('a').join('');
