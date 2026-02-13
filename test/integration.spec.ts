@@ -166,4 +166,56 @@ End of report.
     const expected = [slack.section('&lt;&gt;&amp;\'""\'&amp;&gt;&lt;')];
     expect(actual).toStrictEqual(expected);
   });
+
+  describe('HTML entity decoding', () => {
+    it('should decode named entities', async () => {
+      const actual = await markdownToBlocks('A &amp; B');
+      const expected = [slack.section('A &amp; B')];
+      expect(actual).toStrictEqual(expected);
+    });
+
+    it('should decode &lt; and &gt; entities', async () => {
+      const actual = await markdownToBlocks('&lt;div&gt;');
+      const expected = [slack.section('&lt;div&gt;')];
+      expect(actual).toStrictEqual(expected);
+    });
+
+    it('should decode numeric entities', async () => {
+      const actual = await markdownToBlocks('&#38; &#60; &#62;');
+      const expected = [slack.section('&amp; &lt; &gt;')];
+      expect(actual).toStrictEqual(expected);
+    });
+
+    it('should decode hex entities', async () => {
+      const actual = await markdownToBlocks('&#x26; &#x3C; &#x3E;');
+      const expected = [slack.section('&amp; &lt; &gt;')];
+      expect(actual).toStrictEqual(expected);
+    });
+
+    it('should decode &copy; entity', async () => {
+      const actual = await markdownToBlocks('&#169; 2024');
+      const expected = [slack.section('\u00A9 2024')];
+      expect(actual).toStrictEqual(expected);
+    });
+
+    it('should decode &quot; and &apos; entities', async () => {
+      const actual = await markdownToBlocks(
+        '&quot;hello&quot; &apos;world&apos;'
+      );
+      const expected = [slack.section('"hello" \'world\'')];
+      expect(actual).toStrictEqual(expected);
+    });
+
+    it('should leave malformed entities as-is', async () => {
+      const actual = await markdownToBlocks('&invalid; &#; &#xZZ;');
+      const expected = [slack.section('&amp;invalid; &amp;#; &amp;#xZZ;')];
+      expect(actual).toStrictEqual(expected);
+    });
+
+    it('should handle mixed entities and raw characters', async () => {
+      const actual = await markdownToBlocks('A & B &amp; C');
+      const expected = [slack.section('A &amp; B &amp; C')];
+      expect(actual).toStrictEqual(expected);
+    });
+  });
 });

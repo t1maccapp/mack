@@ -30,9 +30,11 @@
   "dependencies": {
     "@slack/types": "^2.20.0",
     "fast-xml-parser": "^4.0.6",
+    "he": "^1.2.0",
     "marked": "^4.0.12"
   },
   "devDependencies": {
+    "@types/he": "^1.2.3",
     "@types/jest": "^26.0.23",
     "@types/marked": "^4.0.2",
     "@types/node": "^15.12.4",

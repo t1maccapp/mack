@@ -1,4 +1,5 @@
 import type {KnownBlock} from '@slack/types';
+import {decode} from 'he';
 import {parseBlocks} from './parser/internal';
 import type {ParsingOptions} from './types';
 import {marked} from 'marked';
@@ -35,7 +36,8 @@ export async function markdownToBlocks(
   const lexer = new marked.Lexer();
   lexer.options.tokenizer = new marked.Tokenizer();
   lexer.options.tokenizer.inlineText = src => {
-    const text = src.replace(/[&<>]/g, char => {
+    const decoded = decode(src, {isAttributeValue: false, strict: false});
+    const text = decoded.replace(/[&<>]/g, char => {
       return replacements[char];
     });
 
