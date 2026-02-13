@@ -35,16 +35,36 @@ export async function markdownToBlocks(
 
   const lexer = new marked.Lexer();
   lexer.options.tokenizer = new marked.Tokenizer();
-  lexer.options.tokenizer.inlineText = src => {
+  const decodeAndEscape = (src: string): string => {
     const decoded = decode(src, {isAttributeValue: false, strict: false});
-    const text = decoded.replace(/[&<>]/g, char => {
-      return replacements[char];
-    });
+    return decoded.replace(/[&<>]/g, char => replacements[char]);
+  };
 
+  lexer.options.tokenizer.inlineText = src => {
     return {
       type: 'text',
       raw: src,
-      text: text,
+      text: decodeAndEscape(src),
+    };
+  };
+
+  const codespanRule =
+    /^(?:\*{1,2})?(`+)([^`]|[^`][\s\S]*?[^`])\1(?!\*)(?:\*{1,2})?/;
+  lexer.options.tokenizer.codespan = src => {
+    const cap = codespanRule.exec(src);
+    if (!cap) return false as never;
+
+    let text = cap[2].replace(/\n/g, ' ');
+    const hasNonSpaceChars = /[^ ]/.test(text);
+    const hasSpaceCharsOnBothEnds = /^ /.test(text) && / $/.test(text);
+    if (hasNonSpaceChars && hasSpaceCharsOnBothEnds) {
+      text = text.substring(1, text.length - 1);
+    }
+
+    return {
+      type: 'codespan',
+      raw: cap[0],
+      text: decodeAndEscape(text),
     };
   };
 

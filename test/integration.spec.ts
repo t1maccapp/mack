@@ -217,5 +217,21 @@ End of report.
       const expected = [slack.section('A &amp; B &amp; C')];
       expect(actual).toStrictEqual(expected);
     });
+
+    it('should decode entities in inline code', async () => {
+      const actual = await markdownToBlocks('here&#39;s the result');
+      const expected = [slack.section("here's the result")];
+      expect(actual).toStrictEqual(expected);
+    });
+
+    it('should decode &#39; in a full sentence', async () => {
+      const actual = await markdownToBlocks(
+        'Based on the analysis, here&#39;s the dependency table'
+      );
+      const expected = [
+        slack.section("Based on the analysis, here's the dependency table"),
+      ];
+      expect(actual).toStrictEqual(expected);
+    });
   });
 });
