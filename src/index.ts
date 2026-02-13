@@ -34,23 +34,30 @@ export async function markdownToBlocks(
   };
 
   const lexer = new marked.Lexer();
-  lexer.options.tokenizer = new marked.Tokenizer();
+  const tokenizer = (lexer as unknown as {tokenizer: marked.Tokenizer})
+    .tokenizer;
+  const inlineTextRule = (
+    tokenizer as unknown as {rules: {inline: {text: RegExp}}}
+  ).rules.inline.text;
   const decodeAndEscape = (src: string): string => {
     const decoded = decode(src, {isAttributeValue: false, strict: false});
     return decoded.replace(/[&<>]/g, char => replacements[char]);
   };
 
-  lexer.options.tokenizer.inlineText = src => {
+  tokenizer.inlineText = (src: string) => {
+    const cap = inlineTextRule.exec(src);
+    if (!cap) return false as never;
+
     return {
       type: 'text',
-      raw: src,
-      text: decodeAndEscape(src),
+      raw: cap[0],
+      text: decodeAndEscape(cap[0]),
     };
   };
 
   const codespanRule =
     /^(?:\*{1,2})?(`+)([^`]|[^`][\s\S]*?[^`])\1(?!\*)(?:\*{1,2})?/;
-  lexer.options.tokenizer.codespan = src => {
+  tokenizer.codespan = (src: string) => {
     const cap = codespanRule.exec(src);
     if (!cap) return false as never;
 
