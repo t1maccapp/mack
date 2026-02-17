@@ -58,6 +58,9 @@ function parseMrkdwn(
 ): string {
   switch (element.type) {
     case 'link': {
+      if (element.href.startsWith('mailto:')) {
+        return element.raw;
+      }
       return `<${element.href}|${element.tokens
         .flatMap(child => parseMrkdwn(child as typeof element))
         .join('')}> `;

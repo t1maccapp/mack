@@ -1,4 +1,4 @@
-import {markdownToBlocks} from '../src';
+import { markdownToBlocks } from '../src';
 import * as slack from '../src/slack';
 
 describe('integration with unified', () => {
@@ -52,21 +52,85 @@ a **b** _c_ **_d_ e**
       slack.section('• checkbox false\n• checkbox true'),
       slack.table([
         [
-          {type: 'raw_text', text: 'Syntax'},
-          {type: 'raw_text', text: 'Description'},
+          { type: 'raw_text', text: 'Syntax' },
+          { type: 'raw_text', text: 'Description' },
         ],
         [
-          {type: 'raw_text', text: 'Header'},
-          {type: 'raw_text', text: 'Title'},
+          { type: 'raw_text', text: 'Header' },
+          { type: 'raw_text', text: 'Title' },
         ],
         [
-          {type: 'raw_text', text: 'Paragraph'},
-          {type: 'raw_text', text: 'Text'},
+          { type: 'raw_text', text: 'Paragraph' },
+          { type: 'raw_text', text: 'Text' },
         ],
       ]),
     ];
 
     expect(actual).toStrictEqual(expected);
+  });
+
+  it('should parse repository structure markdown with bold, inline code, and lists', async () => {
+    const text = `
+You have access to the following repository structure:
+
+**Main Repository:** \`example-repo\` (git@github.com:example/example-repo.git)
+- Located at: \`/home/opencode/repos/example-repo\`
+
+**Sub-repositories/modules within example-repo:**
+1. \`example-backend\`
+2. \`example-frontend\`
+
+This appears to be a monorepo or a repository with multiple git submodules containing both backend and frontend components for a "Example" application, along with custom content backend and other services.
+`.trim();
+
+    const actual = await markdownToBlocks(text);
+
+    expect(actual).toHaveLength(6);
+    expect(actual[0]).toStrictEqual(
+      slack.section('You have access to the following repository structure:')
+    );
+    expect(actual[1]).toStrictEqual(
+      slack.section('*Main Repository:* `example-repo` (git@github.com:example/example-repo.git)')
+    );
+    expect(actual[2]).toStrictEqual(
+      slack.section('• Located at: `/home/opencode/repos/example-repo`')
+    );
+    expect(actual[3]).toStrictEqual(
+      slack.section('*Sub-repositories/modules within example-repo:*')
+    );
+    expect(actual[4]).toStrictEqual(
+      slack.section(
+        '1. `example-backend`\n2. `example-frontend`'
+      )
+    );
+    expect(actual[5]).toStrictEqual(
+      slack.section(
+        'This appears to be a monorepo or a repository with multiple git submodules containing both backend and frontend components for a "Example" application, along with custom content backend and other services.'
+      )
+    );
+  });
+
+  it('should preserve HTTP/HTTPS autolinks while stripping mailto links', async () => {
+    const text = `
+Visit https://github.com for code.
+
+Email user@example.com for help.
+
+Clone git@github.com:example/repo.git to get started.
+`.trim();
+
+    const actual = await markdownToBlocks(text);
+
+    expect(actual).toHaveLength(3);
+    expect(actual[0]).toStrictEqual(
+      slack.section('Visit <https://github.com|https://github.com>  for code.')
+    );
+    expect(actual[1]).toStrictEqual(
+      slack.section('Email user@example.com for help.')
+    );
+    expect(actual[2]).toStrictEqual(
+      slack.section('Clone git@github.com:example/repo.git to get started.')
+    );
   });
 
   it('should parse long markdown', async () => {
